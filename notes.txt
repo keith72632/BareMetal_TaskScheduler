@@ -1,0 +1,139 @@
+Cross Compilation
+
+Download:
+    https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads
+
+Add to Path
+    export PATH=$PATH:~/Tools/gcc-arm-none-eabi-10-2020-q4-major/bin
+
+Command Line
+    Compile, Linker, and Assembler:
+        arm-non-eabi-gcc
+    Linker:
+        arm-none-eabi-ld
+    Elf File Analyzer:
+        arm-none-eabi-objdump
+        arm-none-eabi-readelf
+        arm-none-eabi-nm
+    Format Converter:
+        arm-none-eabi-objcopy
+    Assembler:
+        arm-none-eabi-as
+Flags
+     -c = compile only. gcc default is to compile and link
+     -S = stop after compilation but does not assemble. output in assembly
+     -mcpu=cortex-m4 = machine cpu for cortex m4 
+     -march=cortex-m4 = machine architecture
+     -mthumb = thumb state
+     -marm = ARM state
+     -O0 = no optomization
+Build Process: preprocessing->compilation->linking: *.c -> *.i -> *.s -> *.o
+    *.c = source file
+    *.i = input coude
+    *.s = assembly
+    *.o = object file (opcodes)
+    *.elf = executable and linkable format. use objcopy to analyze
+    *.bin = binary 
+Analyzing .o files
+    -main.o is in elf format
+    -file format standards describes ways of organizing elemnets like data, read only.
+    -objdump flags:
+        -h = headers for data
+        -d = disassembly(text only)
+        -D = disassembly)(all)
+Other File Formats
+    COFF(Common Object File Format): introduced by Unix system
+    AIF(Arm Image Format): Introduced by ARM
+    SRECORD: motorola
+
+Code and Data
+    Code: instructions stored in the FLASH memory. Read Only 
+    Data: varaibles are stored in main memory(RAM). Stored in RAM because it change. Read/Write
+    ROM: .text
+    RAM: .data .rodata .bss
+
+Linker and Locator
+    Use the linker to merge similar sections of different object files and resolve undefined symbols.
+Locator, which is part of linker, takes the help of the linker script to understand how you wish to 
+merge different sections. 
+    Store final execution(.data .rodata .text) in code(ROM, FLASH). .data is copied to RAM in startup
+code. 
+    Symbols: _edata, _sdata, _etext
+
+Different Data Sections of a Program(Do more research later)
+    Local: local_un_data, local_i_data = local unitialized and initialized.
+           local_un_s_data, local_i_s_data = local uinitialized and initialize static data
+    Global: global_un_data, global_i_data, global_un_s_data, global_i_s_data
+.bss vs data
+    .bss = Blocked Started by Symbol. Unitialied static variables and global variable are stored here
+    Since these variables do not have intial values, they are not required to be stored in .data. Thye 
+would unecissarily consume FLASH. 
+    ex. int g_un_data1; == .bss
+        static int g_un_data1 == .bss
+        int g_i_data = 5; == .data
+
+Startup File Objective
+    The startup file is responsible for setting up the right environment for code to run. Startup 
+calls main. Also contains targets like vector tables. Takes care of placemnt of this vector table. 
+Takes care of stack placement(sometimes). Resonsible for .data and .bss sections. 
+
+1) Setup vector table. 15 exceptions and 82 IRQs multiplied by 4 is 392 bytes
+    *create an array to hold MSP and handler's addresses
+    *instruct compiler not to include vector array in data section
+
+
+Linker Scripts 
+    *explains how different section of object files should be merged
+    *must supply linker script at the linking phase to the linker using -T option
+    Commands:
+        *ENTRY = set the entry point address info in the header of elf. In this point
+        im using the reset handler. Syntax = ENTRY(__symbol__) ex. ENTRY(Reset_Handler)
+        *MEMORY = used to describe different memories present in the target and their start
+        address. Assign addresses to merged sections. Calculate the total code and data consumed.
+        Memmory can fine tune various memories available. Syntax MEMORY {
+            name(attr): ORIGIN = origin, LENGTH = len  
+            }
+        attr = R read only, w read and write, x sections conatining executable code, i initialized
+        *SECTIONS = used to create different ouput sections. This command controls the order
+        in which different output sections appear in the elf file. Also mention the placement
+        of a section in a memory region. For ex. you can instuct the linker to place the
+        .text section in the FLASH memory region, which is described byt the MEMORY command.
+        Use the wildcard symbol '*' infront of bracket for all files
+        *KEEP
+        *ALIGN
+        *AT>
+        *Location counter(.) = updates this symbol with location information. Appears onlu
+        in SECTIONS. Incrmented by the size of the output section. Only tacks VMA.  
+    A symbol is the name of an address. Symbol declarations are not the same as variables. 
+when compiled, compiler assigns things like variables and functions to addresses using a 
+Symbol Table. 
+    use -Wl,-Map=final.map to generate map file where data placment is displayed. Without ALIGN
+symbols, you can cleary see the data isn't aligned. ALIGN() take number of bytes as argument. 
+
+OpenOCD
+    STM32 discovery boards have onobaord debugger. Telenet server port 4444, GDB client port 3333. 
+ openocd -f /usr/share/openocd/scripts/board/stm32f4discovery.cfg -f /usr/share/openocd/scripts/interface/stlink-v2-1.cfg -c "stm32f4x.cpu configure -rtos ChibiOS"
+
+arm-none-eabi-gbd 
+    target remote localhost:3333 = connects to the openocd debugger server
+    monitor reset init = 
+    monitor flash write_image erase $FILE.elf = flashed file to board. Might show a "cant find file" error
+    monitor reset run = resets and runs
+
+    Breakpoints
+        monitor halt
+        monitor mdw $ADDRESS lenght
+        monitor bp $ADDRESS_OF_BP length hw(hardware)
+        monitor resume
+        monitor run 
+        monitor mdw $ADDR length = this shows the value aat address when bp hit
+        monitor bp = lists breakpoints
+        monitor rbp $ADDR = removes breakpoint at address
+
+Standard Library
+    Newlib is a C standard library intended for use on embeded systems. Ships with gnu arm toolchain. 
+Includes libc(glibc) ISO C, POSIX, System V. Newlib-nano is used because of less bloat. 
+    -located at: ~/Tools/gcc-arm-none-eabi-10-2020-q4-major/arm-none-eabi/lib
+    Must impilment system calls. printf() is included with newlib-nano as write(). Must determine where
+write is use. UART, LCD etc. Use linker flags: --specs=nano.specs. Make sure there is no -stdlib file 
+    In linker, must include *(.text.*) and *(.data.*) and *(.bss.*) to merge sub-sections. 
