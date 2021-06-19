@@ -15,11 +15,15 @@
 #include"main.h"
 #include "led.h"
 
+#define USART3_IRQ_NO 39
+
 void task1_handler(void); //This is task1
 void task2_handler(void); //this is task2
 void task3_handler(void); //this is task3
 void task4_handler(void); // this is task4 of the application
-
+void triggerMemManage(void);
+void invokeWD(void);
+void invokeUSART3(void);
 
 void init_systick_timer(uint32_t tick_hz);
 __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
@@ -57,6 +61,7 @@ int main(void)
 
 	enable_processor_faults();
 	
+    //initialized semihosting
 	initialise_monitor_handles();
 
 	init_scheduler_stack(SCHED_STACK_START);
@@ -71,7 +76,7 @@ int main(void)
 
 	switch_sp_to_psp();
 
-	task1_handler();
+    task1_handler();
 
 	for(;;);
 }
@@ -87,11 +92,12 @@ void task1_handler(void)
 {
 	while(1)
 	{
+        invokeWD();
 		printf("Task1 is executing\n");
 		led_on(LED_GREEN);
-		task_delay(1000);
+		task_delay(10000);
 		led_off(LED_GREEN);
-		task_delay(1000);
+		task_delay(10000);
 	}
 
 }
@@ -102,9 +108,9 @@ void task2_handler(void)
 	{
 		printf("Task2 is executing\n");
 		led_on(LED_ORANGE);
-		task_delay(1000);
+		task_delay(10000);
 		led_off(LED_ORANGE);
-		task_delay(1000);
+		task_delay(10000);
 	}
 
 }
@@ -115,9 +121,9 @@ void task3_handler(void)
 	{
 		printf("Task3 is executing\n");
 		led_on(LED_BLUE);
-		task_delay(250);
+		task_delay(2500);
 		led_off(LED_BLUE);
-		task_delay(250);
+		task_delay(2500);
 	}
 
 }
@@ -129,9 +135,9 @@ void task4_handler(void)
 	{
 		printf("Task4 is executing\n");
 		led_on(LED_RED);
-		task_delay(125);
+		task_delay(1250);
 		led_off(LED_RED);
-		task_delay(125);
+		task_delay(1250);
 	}
 
 
@@ -395,9 +401,18 @@ void HardFault_Handler(void)
 }
 
 
-void MemManage_Handler(void)
+__attribute__((naked)) void MemManage_Handler(void)
 {
+    __asm volatile("MRS R0,MSP");
+    __asm volatile("BL MemManage_Handler_C");
+}
+
+void MemManage_Handler_C(uint32_t *stack)
+{
+    uint32_t *pMMFR = (uint32_t *)0xE000ED28;
+    printf("Value in MMFSR: %ld\n", *pMMFR);
 	printf("Exception : MemManage\n");
+    printf("Program Counter: %lx\n", stack[6]);
 	while(1);
 }
 
@@ -407,3 +422,49 @@ void BusFault_Handler(void)
 	while(1);
 }
 
+void triggerMemManage(void)
+{
+    uint32_t *pAddr = (uint32_t *)0x40000000;
+    *pAddr = 0xffffffff;
+    void(*address)(void);
+    address = (void *)pAddr;
+    address();
+}
+
+void invokeWD(void)
+{
+    //interrupt set-pending for irq0
+    uint32_t *pISPR0 = (uint32_t*)0xe000e200;
+    *pISPR0 |= (1 << 0);
+    //interrupt set-enable for irq0
+    uint32_t *pISER0 = (uint32_t*)0xe000e100;
+    *pISER0 |= (1<<0);
+}
+
+__attribute__((naked)) void WWDG_IRQHandler(void)
+{
+    __asm volatile("MRS R0,MSP");
+    __asm volatile("B WWDG_IRQHandler_C");
+}
+
+void WWDG_IRQHandler_C(uint32_t *stack)
+{
+    printf("In WD\n");
+    printf("Program Counter: %lx\n", stack[6]);
+}
+
+void USART3_IRQHandler(void)
+{
+    printf("in usart3 handler\n");
+    while(1);
+}
+
+void invokeUSART3(void)
+{
+    //interrupt set-pending register 
+    uint32_t *pISPR1 = (uint32_t *)0XE000E204;
+    *pISPR1 |= (1 << (USART3_IRQ_NO % 32));
+    //interrupt enable-pending resgietr
+    uint32_t *pISER1 = (uint32_t *)0XE000E104;
+    *pISER1 |= (1 << (USART3_IRQ_NO % 32)); 
+}

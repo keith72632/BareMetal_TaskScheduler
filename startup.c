@@ -19,6 +19,7 @@ extern uint32_t _ebss;
 
 int main(void);
 
+//initalized standard C library
 void __libc_init_array(void);
 
 
@@ -246,6 +247,7 @@ void Reset_Handler(void)
 		*pDst++ = 0;
 	}
 
+    //initalizes standard library
 	__libc_init_array();
 	
 	main();

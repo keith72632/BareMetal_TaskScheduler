@@ -137,3 +137,13 @@ Includes libc(glibc) ISO C, POSIX, System V. Newlib-nano is used because of less
     Must impilment system calls. printf() is included with newlib-nano as write(). Must determine where
 write is use. UART, LCD etc. Use linker flags: --specs=nano.specs. Make sure there is no -stdlib file 
     In linker, must include *(.text.*) and *(.data.*) and *(.bss.*) to merge sub-sections. 
+
+SemiHosting
+    A way to show printf. flags = --specs=rdimon.specs. Do not link syscalls, because semihosting library provides everything.
+Commands: 
+        target remote localhost:3333
+        monitor reset init
+        monitor flash write_image erase final_sh.elf
+        monitor arm semihosting enable
+        monitor reset 
+        *will start printing in terminal with openocd
