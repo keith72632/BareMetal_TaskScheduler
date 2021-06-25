@@ -11,6 +11,7 @@
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
+#include <stdint.h>
 #include<stdio.h>
 #include"main.h"
 #include "led.h"
@@ -21,6 +22,7 @@ void task1_handler(void); //This is task1
 void task2_handler(void); //this is task2
 void task3_handler(void); //this is task3
 void task4_handler(void); // this is task4 of the application
+void idle_task(void);
 void triggerMemManage(void);
 void invokeWD(void);
 void invokeUSART3(void);
@@ -52,6 +54,22 @@ typedef struct
 }TCB_t;
 
 TCB_t user_tasks[MAX_TASKS];
+
+uint32_t stackStarts[] = {
+    IDLE_STACK_START,
+    T1_STACK_START,
+    T2_STACK_START,
+    T3_STACK_START,
+    T4_STACK_START    
+};
+
+void (*taskHandlers[])() = {
+    idle_task,
+    task1_handler,
+    task2_handler,
+    task3_handler,
+    task4_handler
+};
 
 //semihosting init function 
 extern void initialise_monitor_handles(void);
@@ -181,6 +199,14 @@ __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack)
 void init_tasks_stack(void)
 {
 
+    for(int i = 0; i < MAX_TASKS; i++)
+    {
+        user_tasks[i].current_state = TASK_READY_STATE;
+        user_tasks[i].psp_value = stackStarts[i];
+        user_tasks[i].task_handler = taskHandlers[i];
+    }
+
+#if 0
 	user_tasks[0].current_state = TASK_READY_STATE;
 	user_tasks[1].current_state = TASK_READY_STATE;
 	user_tasks[2].current_state = TASK_READY_STATE;
@@ -199,6 +225,7 @@ void init_tasks_stack(void)
 	user_tasks[3].task_handler = task3_handler;
 	user_tasks[4].task_handler = task4_handler;
 
+#endif
 
 	uint32_t *pPSP;
 
