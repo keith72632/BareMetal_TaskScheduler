@@ -25,6 +25,7 @@ void triggerMemManage(void);
 void invokeWD(void);
 void invokeUSART3(void);
 
+extern "C" {
 void init_systick_timer(uint32_t tick_hz);
 __attribute__((naked)) void init_scheduler_stack(uint32_t sched_top_of_stack);
 void init_tasks_stack(void);
@@ -33,8 +34,11 @@ __attribute__((naked)) void switch_sp_to_psp(void);
 uint32_t get_psp_value(void);
 
 void task_delay(uint32_t tick_count);
+}
 
-
+extern "C" void led_init_all(void);
+extern "C" void led_on(uint8_t led_no);
+extern "C" void led_off(uint8_t led_no);
 uint8_t current_task = 1; //task1 is running
 
 
@@ -52,13 +56,28 @@ typedef struct
 }TCB_t;
 
 TCB_t user_tasks[MAX_TASKS];
+void (*taskHandlers[])() ={
+    0,
+    task1_handler,
+    task2_handler,
+    task3_handler,
+    task4_handler
+};
+
+uint32_t stackStarts[] =
+{
+    IDLE_STACK_START,
+    T1_STACK_START,
+    T2_STACK_START,
+    T3_STACK_START,
+    T4_STACK_START
+};
 
 //semihosting init function 
-extern void initialise_monitor_handles(void);
+extern "C" void initialise_monitor_handles(void);
 
 int main(void)
 {
-
 	enable_processor_faults();
 	
     //initialized semihosting
@@ -70,7 +89,7 @@ int main(void)
 
 	init_tasks_stack();
 
-	led_init_all();
+	//led_init_all();
 
 	init_systick_timer(TICK_HZ);
 
@@ -90,13 +109,13 @@ void idle_task(void)
 
 void task1_handler(void)
 {
+    Led red(3, LED_RED, 1);
 	while(1)
 	{
-        invokeWD();
 		printf("Task1 is executing\n");
-		led_on(LED_GREEN);
+        red.turnOnLed();
 		task_delay(10000);
-		led_off(LED_GREEN);
+        red.turnOffLed();
 		task_delay(10000);
 	}
 
@@ -104,12 +123,13 @@ void task1_handler(void)
 
 void task2_handler(void)
 {
+    Led blue(3, LED_BLUE, 1);
 	while(1)
 	{
 		printf("Task2 is executing\n");
-		led_on(LED_ORANGE);
+        blue.turnOnLed();
 		task_delay(10000);
-		led_off(LED_ORANGE);
+        blue.turnOffLed();
 		task_delay(10000);
 	}
 
@@ -117,12 +137,13 @@ void task2_handler(void)
 
 void task3_handler(void)
 {
+    Led green(3, LED_GREEN, 1);
 	while(1)
 	{
 		printf("Task3 is executing\n");
-		led_on(LED_BLUE);
+        green.turnOnLed();
 		task_delay(2500);
-		led_off(LED_BLUE);
+        green.turnOffLed();
 		task_delay(2500);
 	}
 
@@ -131,19 +152,20 @@ void task3_handler(void)
 void task4_handler(void)
 
 {
+    Led orange(3, LED_ORANGE, 1);
 	while(1)
 	{
 		printf("Task4 is executing\n");
-		led_on(LED_RED);
+        orange.turnOnLed();
 		task_delay(1250);
-		led_off(LED_RED);
+        orange.turnOffLed();
 		task_delay(1250);
 	}
 
 
 }
 
-
+extern "C" {
 void init_systick_timer(uint32_t tick_hz)
 {
 	uint32_t *pSRVR = (uint32_t*)0xE000E014;
@@ -182,23 +204,17 @@ void init_tasks_stack(void)
 {
 
 	user_tasks[0].current_state = TASK_READY_STATE;
-	user_tasks[1].current_state = TASK_READY_STATE;
-	user_tasks[2].current_state = TASK_READY_STATE;
-	user_tasks[3].current_state = TASK_READY_STATE;
-	user_tasks[4].current_state = TASK_READY_STATE;
 
 	user_tasks[0].psp_value = IDLE_STACK_START;
-	user_tasks[1].psp_value = T1_STACK_START;
-	user_tasks[2].psp_value = T2_STACK_START;
-	user_tasks[3].psp_value = T3_STACK_START;
-	user_tasks[4].psp_value = T4_STACK_START;
 
 	user_tasks[0].task_handler = idle_task;
-	user_tasks[1].task_handler = task1_handler;
-	user_tasks[2].task_handler = task2_handler;
-	user_tasks[3].task_handler = task3_handler;
-	user_tasks[4].task_handler = task4_handler;
-
+    
+    for(int i = 1; i < MAX_TASKS; i++)
+    {
+        user_tasks[i].current_state = TASK_READY_STATE;
+        user_tasks[i].psp_value = stackStarts[i];
+        user_tasks[i].task_handler = taskHandlers[i];
+    }
 
 	uint32_t *pPSP;
 
@@ -392,7 +408,8 @@ void  SysTick_Handler(void)
     //pend the pendsv exception
     *pICSR |= ( 1 << 28);
 }
-
+}
+#if 0
 //2. implement the fault handlers
 void HardFault_Handler(void)
 {
@@ -421,15 +438,16 @@ void BusFault_Handler(void)
 	printf("Exception : BusFault\n");
 	while(1);
 }
-
+#if 0
 void triggerMemManage(void)
 {
     uint32_t *pAddr = (uint32_t *)0x40000000;
     *pAddr = 0xffffffff;
     void(*address)(void);
-    address = (void *)pAddr;
+    address = pAddr;
     address();
 }
+#endif
 
 void invokeWD(void)
 {
@@ -468,3 +486,4 @@ void invokeUSART3(void)
     uint32_t *pISER1 = (uint32_t *)0XE000E104;
     *pISER1 |= (1 << (USART3_IRQ_NO % 32)); 
 }
+#endif

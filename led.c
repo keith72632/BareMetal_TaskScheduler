@@ -3,6 +3,20 @@
 #include "led.h"
 
 
+void led_on(uint8_t led_no)
+{
+  uint32_t *pGpiodDataReg = (uint32_t*)0x40020C14;
+  *pGpiodDataReg |= ( 1 << led_no);
+
+}
+
+void led_off(uint8_t led_no)
+{
+	  uint32_t *pGpiodDataReg = (uint32_t*)0x40020C14;
+	  *pGpiodDataReg &= ~( 1 << led_no);
+
+}
+
 
 void delay(uint32_t count)
 {
@@ -39,19 +53,3 @@ void led_init_all(void)
 
 
 }
-
-void led_on(uint8_t led_no)
-{
-  uint32_t *pGpiodDataReg = (uint32_t*)0x40020C14;
-  *pGpiodDataReg |= ( 1 << led_no);
-
-}
-
-void led_off(uint8_t led_no)
-{
-	  uint32_t *pGpiodDataReg = (uint32_t*)0x40020C14;
-	  *pGpiodDataReg &= ~( 1 << led_no);
-
-}
-
-
