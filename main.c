@@ -15,6 +15,7 @@
 #include<stdio.h>
 #include"main.h"
 #include "led.h"
+#include "uart.h"
 
 #define USART3_IRQ_NO 39
 
@@ -90,6 +91,8 @@ int main(void)
 
 	led_init_all();
 
+    uart_init();
+
 	init_systick_timer(TICK_HZ);
 
 	switch_sp_to_psp();
@@ -124,6 +127,7 @@ void task2_handler(void)
 {
 	while(1)
 	{
+        uputc('x');
 		printf("Task2 is executing\n");
 		led_on(LED_ORANGE);
 		task_delay(10000);
