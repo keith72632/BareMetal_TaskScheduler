@@ -7,7 +7,7 @@ void uart_init()
     uint32_t *pGpioAMode = (uint32_t *)0x40020000;
     uint32_t *pGpioAltFunc = (uint32_t *)0x40020020;
 
-    *pRccAhb1 &= ~(0xffffffff);
+//    *pRccAhb1 &= ~(0xffffffff);
     *pRccAhb1 |= (1 << 0);
 
     *pRccApb1 &= ~(0xffffffff);
@@ -35,10 +35,19 @@ void uputc(char c)
     uint32_t *pUsart_Dr = (uint32_t *)0x40004404;
 
 
-    while(*pUsart_Sr & (1 << 7))
+    if(!(*pUsart_Sr & 0x0080)){};
+    *pUsart_Dr = (c & 0xff);
+
+}
+
+void uputs(char *s)
+{
+    uint32_t *pUsart_Sr = (uint32_t *)0x40004400;
+    uint32_t *pUsart_Dr = (uint32_t *)0x40004404;
+    
+    for(int i = 0; s[i] != '\n'; i++)
     {
-        *pUsart_Dr = (c & 0xff);
-        while(!(*pUsart_Sr = (1 << 6)));
+        uputc(s[i]);
     }
 
 }

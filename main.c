@@ -92,7 +92,10 @@ int main(void)
 	led_init_all();
 
     uart_init();
+    char c = 'x';
+    uputc(c);
 
+    led_on(LED_GREEN);
 	init_systick_timer(TICK_HZ);
 
 	switch_sp_to_psp();
@@ -127,7 +130,7 @@ void task2_handler(void)
 {
 	while(1)
 	{
-        uputc('x');
+        uputs("hello world\n");
 		printf("Task2 is executing\n");
 		led_on(LED_ORANGE);
 		task_delay(10000);
